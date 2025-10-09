@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    // Base URL is required for path mapping
+    "baseUrl": ".",
+    
+    // Define the path alias. "@/*" maps to the "src/*" folder.
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
