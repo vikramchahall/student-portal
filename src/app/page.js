@@ -168,7 +168,7 @@ export default function LandingPage() {
        <main className="relative z-10 container mx-auto px-6 py-20">
          <div className="text-center mb-16">
            <h1 className="text-7xl font-bold text-white mb-6">
-             Welcome to <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Future Mess</span>
+             Welcome to <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Smart Mess</span>
            </h1>
            <p className="text-2xl text-blue-200 mb-8 max-w-3xl mx-auto">
              Smart dining management for the modern campus. Track meals, manage nutrition, and experience hassle-free dining.
@@ -296,11 +296,11 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-6 text-white">
             <div className="text-center">
               <p className="text-blue-200 mb-2">Email</p>
-              <p className="font-semibold">futuremess@campus.edu</p>
+              <p className="font-semibold">vikrams.ce.23@nitj.ac.in</p>
             </div>
             <div className="text-center">
               <p className="text-blue-200 mb-2">Phone</p>
-              <p className="font-semibold">+91 98765 43210</p>
+              <p className="font-semibold">+91 88375 10630</p>
             </div>
           </div>
         </div>
@@ -821,8 +821,8 @@ function BookingForm({ meal, onClose }) {
             <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
               <h4 className="text-white font-semibold mb-2">📞 Our Contact Details:</h4>
               <div className="text-white/90 text-sm space-y-1">
-                <p><strong>Email:</strong> futuremess@campus.edu</p>
-                <p><strong>Phone:</strong> +91 98765 43210</p>
+                <p><strong>Email:</strong> vikrams.ce.23@nitj.ac.in</p>
+                <p><strong>Phone:</strong> +91 88375 10630</p>
               </div>
             </div>
 
