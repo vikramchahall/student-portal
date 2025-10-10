@@ -92,6 +92,11 @@ export default function AdminDashboard() {
                   Scanner
                 </button>
               </Link>
+              <Link href="/admin/billing" passHref>
+                <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                  Billing
+                </button>
+              </Link>
               <Link href="/admin/feedback" passHref>
                 <button className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
                   Feedback
