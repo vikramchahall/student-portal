@@ -145,7 +145,7 @@ export default function LandingPage() {
              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
                <span className="text-2xl">🍽️</span>
              </div>
-             <span className="text-2xl font-bold text-white">FutureMess</span>
+             <span className="text-2xl font-bold text-white">SmartMess</span>
            </div>
            
            <div className="flex gap-4">
