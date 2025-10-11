@@ -19,22 +19,96 @@ export default function SignUpPage() {
   const [success, setSuccess] = useState(false)
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+    const { name, value } = e.target
+    
+    // Restrict roll number to 8 digits only
+    if (name === 'rollNo') {
+      // Only allow digits and max 8 characters
+      const numericValue = value.replace(/\D/g, '').slice(0, 8)
+      setFormData({
+        ...formData,
+        [name]: numericValue
+      })
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      })
+    }
   }
 
   const handlePhotoChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setPhoto(e.target.files[0])
+      const file = e.target.files[0]
+      
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Photo size must be less than 5MB')
+        return
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please upload a valid image file')
+        return
+      }
+      
+      setPhoto(file)
+      setError('') // Clear any previous errors
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
+
+    // ===== VALIDATE EVERYTHING FIRST - BEFORE ANY API CALLS =====
+    
+    // Validate all required fields
+    if (!formData.name.trim()) {
+      setError('Full name is required')
+      return
+    }
+
+    if (!formData.fatherName.trim()) {
+      setError("Father's name is required")
+      return
+    }
+
+    if (!formData.dob) {
+      setError('Date of birth is required')
+      return
+    }
+
+    if (!formData.rollNo.trim()) {
+      setError('Roll number is required')
+      return
+    }
+
+    // Validate roll number (must be exactly 8 digits)
+    if (!/^\d{8}$/.test(formData.rollNo)) {
+      setError('Roll number must be exactly 8 digits')
+      return
+    }
+
+    if (!formData.email.trim()) {
+      setError('Email is required')
+      return
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
+    // Validate photo
+    if (!photo) {
+      setError('Profile photo is required')
+      return
+    }
+
+    // ===== ALL VALIDATION PASSED - NOW START API CALLS =====
+    setLoading(true)
 
     try {
       // 1. Create auth user
@@ -47,24 +121,22 @@ export default function SignUpPage() {
 
       let photoUrl = ''
 
-      // 2. Upload photo if provided
-      if (photo) {
-        const fileExt = photo.name.split('.').pop()
-        const fileName = `${authData.user.id}_${Date.now()}.${fileExt}`
-        
-        const { error: uploadError } = await supabase.storage
-          .from('student-photos')
-          .upload(fileName, photo)
+      // 2. Upload photo
+      const fileExt = photo.name.split('.').pop()
+      const fileName = `${authData.user.id}_${Date.now()}.${fileExt}`
+      
+      const { error: uploadError } = await supabase.storage
+        .from('student-photos')
+        .upload(fileName, photo)
 
-        if (uploadError) throw uploadError
+      if (uploadError) throw uploadError
 
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from('student-photos')
-          .getPublicUrl(fileName)
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('student-photos')
+        .getPublicUrl(fileName)
 
-        photoUrl = urlData.publicUrl
-      }
+      photoUrl = urlData.publicUrl
 
       // 3. Insert student data
       const { error: insertError } = await supabase
@@ -165,7 +237,7 @@ export default function SignUpPage() {
 
               <div>
                 <label className="block text-white text-sm font-semibold mb-2">
-                  Roll Number *
+                  Roll Number * (8 digits)
                 </label>
                 <input
                   type="text"
@@ -173,9 +245,11 @@ export default function SignUpPage() {
                   value={formData.rollNo}
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="2021001"
+                  placeholder="12345678"
                   required
+                  inputMode="numeric"
                 />
+                <p className="text-white/50 text-xs mt-1">Enter 8-digit roll number</p>
               </div>
             </div>
 
@@ -212,15 +286,20 @@ export default function SignUpPage() {
 
             <div>
               <label className="block text-white text-sm font-semibold mb-2">
-                Profile Photo
+                Profile Photo *
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-500 file:text-white hover:file:bg-blue-600"
-              />
-              <p className="text-white/50 text-xs mt-1">Optional - JPG, PNG (Max 5MB)</p>
+              <div className={`relative ${!photo ? 'ring-2 ring-red-500/50 rounded-lg' : ''}`}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-500 file:text-white hover:file:bg-blue-600"
+                />
+              </div>
+              <p className="text-white/50 text-xs mt-1">
+                <span className="text-red-300">* Required</span> - JPG, PNG (Max 5MB)
+                {photo && <span className="text-green-300 ml-2">✓ Photo selected: {photo.name}</span>}
+              </p>
             </div>
 
             <button

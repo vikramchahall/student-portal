@@ -51,28 +51,28 @@ export default function ScannerPage() {
   }, [showNumpad])
 
 const fetchPunchHistory = async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0]
-      const currentMealType = getMealType() // Get the current meal type
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const currentMealType = getMealType() // Get the current meal type
 
-      const { data, error } = await supabase
-        .from('meal_punches')
-        .select(`
-          *,
-          students (
-            name,
-            picture_url
-          )
-        `)
-        .eq('meal_date', today)
-        .eq('meal_type', currentMealType) // Filter by current meal type
-        .order('punch_time', { ascending: false })
+      const { data, error } = await supabase
+        .from('meal_punches')
+        .select(`
+          *,
+          students (
+            name,
+            picture_url
+          )
+        `)
+        .eq('meal_date', today)
+        .eq('meal_type', currentMealType) // Filter by current meal type
+        .order('punch_time', { ascending: false })
 
-      if (error) throw error
-      setPunchHistory(data || [])
-    } catch (error) {
-      console.error('Error fetching history:', error)
-    }
+      if (error) throw error
+      setPunchHistory(data || [])
+    } catch (error) {
+      console.error('Error fetching history:', error)
+    }
 }
 
   const loadTodaysMealsPrepared = async () => {
@@ -96,8 +96,6 @@ const fetchPunchHistory = async () => {
     }
   }
 
-// This file goes into app/admin/scanner/page.js
-
 const saveMealsPrepared = async () => {
   if (!mealsPrepared || isNaN(mealsPrepared)) {
     setMessage({ type: 'error', text: 'Please enter a valid number' })
@@ -117,11 +115,8 @@ const saveMealsPrepared = async () => {
           stat_date: today,
           meal_type: currentMealType,
           meals_prepared: preparedCount,
-          // You might need to add a default value for meals_taken if the column doesn't have one
-          // meals_taken: 0 
         },
         {
-          // This tells Supabase to check for a conflict on these columns
           onConflict: 'stat_date, meal_type',
         }
       )
@@ -136,10 +131,10 @@ const saveMealsPrepared = async () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 3000)
   } catch (error) {
     console.error('Error saving meals prepared:', error)
-    // Add the specific Supabase error message for better debugging
     setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
   }
 }
+
   const saveDietRate = () => {
     if (!dietRate || isNaN(dietRate)) {
       setMessage({ type: 'error', text: 'Please enter a valid amount' })
@@ -187,15 +182,14 @@ const saveMealsPrepared = async () => {
     const today = new Date().toISOString().split('T')[0]
     const now = new Date().toISOString()
 
-    // 1. Check if ANY punch exists for this student, meal, and date.
-    // This is a single, reliable query to determine if it's a first or duplicate punch.
+    // Check if ANY punch exists for this student, meal, and date
     const { data: existingPunches } = await supabase
       .from('meal_punches')
       .select('id')
       .eq('roll_no', roll)
       .eq('meal_date', today)
       .eq('meal_type', mealType)
-      .limit(1); // Optimize to fetch only one record if it exists
+      .limit(1)
 
     const isDuplicate = existingPunches && existingPunches.length > 0;
 
@@ -223,6 +217,37 @@ const saveMealsPrepared = async () => {
       })
       setShowNumpad(true)
     } else {
+      // First, check if there are any cancellations to delete (for today or future dates)
+      const { data: existingCancellations } = await supabase
+        .from('meal_cancellations')
+        .select('*')
+        .eq('student_id', studentData.id)
+        .gte('cancellation_date', today)
+        .eq('status', 'pending')
+
+      console.log('Student ID:', studentData.id)
+      console.log('Today:', today)
+      console.log('Existing cancellations found:', existingCancellations)
+
+      // Delete ALL pending cancellations for this student (today and future dates)
+      const { data: cancelData, error: cancelError } = await supabase
+        .from('meal_cancellations')
+        .delete()
+        .eq('student_id', studentData.id)
+        .gte('cancellation_date', today)
+        .eq('status', 'pending')
+        .select()
+
+      console.log('Delete result:', cancelData)
+      console.log('Delete error:', cancelError)
+
+      // Log for debugging
+      if (cancelData && cancelData.length > 0) {
+        console.log('✅ Successfully deleted cancellations for:', studentData.name, cancelData)
+      } else {
+        console.log('⚠️ No cancellations were deleted')
+      }
+
       // If it's a new punch, insert the record and update stats
       setCurrentStudent(studentData)
 
@@ -275,7 +300,7 @@ const saveMealsPrepared = async () => {
       }, 3000)
     }
 
-    await fetchPunchHistory() // Refresh history in all cases
+    await fetchPunchHistory()
 
   } catch (error) {
     console.error('Error:', error)
@@ -284,7 +309,6 @@ const saveMealsPrepared = async () => {
   } finally {
     setLoading(false)
     setRollNumber('')
-
   }
 }
 
@@ -342,9 +366,6 @@ const handleNumpadSubmit = async () => {
 
     if (punchError) throw punchError
 
-    // ❌ REMOVED: The code block that updates meals_taken is removed.
-    // This is the key change to fix the counting issue.
-
     // Refresh history
     await fetchPunchHistory()
 
@@ -370,11 +391,63 @@ const handleNumpadSubmit = async () => {
     setLoading(false)
   }
 }
+
   const handleNumpadCancel = () => {
     setShowNumpad(false)
     setNumpadAmount('')
     setDuplicateData(null)
     setTimeout(() => inputRef.current?.focus(), 100)
+  }
+
+  const handleDeletePunch = async (punchId, isDuplicate) => {
+    if (!confirm('Are you sure you want to delete this punch?')) {
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      // Delete the punch from meal_punches table
+      const { error: deleteError } = await supabase
+        .from('meal_punches')
+        .delete()
+        .eq('id', punchId)
+
+      if (deleteError) throw deleteError
+
+      // If it's not a duplicate punch, we need to update the daily_meal_stats
+      if (!isDuplicate) {
+        const today = new Date().toISOString().split('T')[0]
+        const mealType = getMealType()
+
+        const { data: statsData } = await supabase
+          .from('daily_meal_stats')
+          .select('*')
+          .eq('stat_date', today)
+          .eq('meal_type', mealType)
+          .single()
+
+        if (statsData && statsData.meals_taken > 0) {
+          await supabase
+            .from('daily_meal_stats')
+            .update({ meals_taken: statsData.meals_taken - 1 })
+            .eq('stat_date', today)
+            .eq('meal_type', mealType)
+        }
+      }
+
+      // Refresh the punch history
+      await fetchPunchHistory()
+
+      setMessage({ type: 'success', text: 'Punch deleted successfully!' })
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+
+    } catch (error) {
+      console.error('Error deleting punch:', error)
+      setMessage({ type: 'error', text: 'Failed to delete punch!' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -478,11 +551,11 @@ const handleNumpadSubmit = async () => {
               </Link>
               
               {/* Current Meal Type Badge */}
-              <div className="mb-3 inline-block bg-purple-500 text-white px-4 py-1 rounded-full text-sm font-bold">
+              <div className="mb-3 inline-block bg-purple-500 text-white px-4 py-2 rounded-full text-sm font-bold">
                 {getMealType().toUpperCase()}
               </div>
               
-              <div className="grid grid-cols-2 gap-4 mb-2">
+              <div className="grid grid-cols-3 gap-4 mb-2">
                 <div>
                   <div className="text-2xl font-bold text-green-400">{getCurrentMealTypePunches()}</div>
                   <div className="text-blue-200 text-xs">Punches ({getMealType()})</div>
@@ -491,12 +564,12 @@ const handleNumpadSubmit = async () => {
                   <div className="text-2xl font-bold text-yellow-400">{savedMealsPrepared}</div>
                   <div className="text-blue-200 text-xs">Meals Prepared</div>
                 </div>
-              </div>
-              <div className="mt-2 pt-2 border-t border-white/20">
-                <div className={`text-2xl font-bold ${getSurplus() >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {getSurplus()}
+                <div>
+                  <div className={`text-2xl font-bold ${getSurplus() >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {getSurplus()}
+                  </div>
+                  <div className="text-blue-200 text-xs">Surplus</div>
                 </div>
-                <div className="text-blue-200 text-xs">Surplus</div>
               </div>
               <div className="mt-3 pt-2 border-t border-white/20">
                 <div className="text-lg font-semibold text-blue-300">{getTotalPunches()}</div>
@@ -585,19 +658,21 @@ const handleNumpadSubmit = async () => {
               </div>
             </div>
 
-            {/* Message Display */}
-            {message.text && (
-              <div className={`rounded-xl p-4 ${
-                message.type === 'success' ? 'bg-green-500/20 border border-green-500 text-green-200' :
-                message.type === 'error' ? 'bg-red-500/20 border border-red-500 text-red-200' :
-                'bg-yellow-500/20 border border-yellow-500 text-yellow-200'
-              }`}>
-                {message.text}
-              </div>
-            )}
+            {/* Message Display - Always Visible Placeholder */}
+            <div className={`rounded-xl p-4 min-h-[60px] flex items-center ${
+              message.text
+                ? message.type === 'success' 
+                  ? 'bg-green-500/20 border border-green-500 text-green-200' 
+                  : message.type === 'error' 
+                    ? 'bg-red-500/20 border border-red-500 text-red-200' 
+                    : 'bg-yellow-500/20 border border-yellow-500 text-yellow-200'
+                : 'bg-white/5 border border-white/10 border-dashed text-white/30'
+            }`}>
+              {message.text || 'Messages will appear here'}
+            </div>
 
-            {/* Current Student Display */}
-            {currentStudent && (
+            {/* Student Details Display Area - Always Visible */}
+            {currentStudent ? (
               <div className="bg-gradient-to-br from-green-500/20 to-emerald-600/20 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border-2 border-green-400">
                 <h2 className="text-xl font-bold text-white mb-4">✅ Punched Successfully</h2>
                 <div className="flex items-center gap-6">
@@ -629,6 +704,18 @@ const handleNumpadSubmit = async () => {
                         {formatTime(new Date())}
                       </span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border-2 border-white/10 border-dashed min-h-[180px]">
+                <h2 className="text-xl font-bold text-white/40 mb-4">Student Details</h2>
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center text-white/30 text-4xl">
+                    👤
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white/30 text-sm">Scan a student ID to see details here</div>
                   </div>
                 </div>
               </div>
@@ -674,6 +761,13 @@ const handleNumpadSubmit = async () => {
                           <div className="text-green-300 font-bold text-sm">₹{punch.amount}</div>
                           <div className="text-white/50 text-xs">{formatTime(punch.punch_time)}</div>
                         </div>
+                        <button
+                          onClick={() => handleDeletePunch(punch.id, punch.is_duplicate)}
+                          className="w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-all flex-shrink-0"
+                          title="Delete punch"
+                        >
+                          ✕
+                        </button>
                       </div>
                     </div>
                   ))
