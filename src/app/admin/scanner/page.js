@@ -588,7 +588,7 @@ const handleNumpadSubmit = async () => {
               
               {/* Diet Rate */}
               <div className="mb-4">
-                <label className="text-white/80 text-sm mb-2 block">Diet Rate per Meal</label>
+                <label className="text-white/80 text-sm mb-2 block">Estimated Diet Rate per Meal</label>
                 <div className="flex gap-4">
                   <input
                     type="number"
